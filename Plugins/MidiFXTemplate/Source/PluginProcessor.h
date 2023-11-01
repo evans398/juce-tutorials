@@ -9,7 +9,12 @@ public:
     void processBlock(juce::AudioBuffer<float>&, juce::MidiBuffer&) override;
 
     juce::AudioProcessorEditor* createEditor() override;
+
+    static int getClosestCMajorScaleNote(int midiNote);
+
 private:
 
     juce::MidiBuffer tempBuffer;
+
+
 };
