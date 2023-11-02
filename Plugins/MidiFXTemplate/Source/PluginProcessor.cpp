@@ -17,7 +17,7 @@ void MidiFXProcessor::processBlock(juce::AudioBuffer<float>& audioBuffer,
         std::cout << "Incoming:" << message.getDescription()
                   << " SamplePos:" << juce::String(samplePos) << std::endl;
 
-        //Then, transpose all notes to be note #60
+        //Then, quantize to c major
         if (message.isNoteOnOrOff())
             message.setNoteNumber(Quantizer::getClosestCMajorScaleNote(message.getNoteNumber()));
 
