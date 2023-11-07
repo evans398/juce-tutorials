@@ -1,5 +1,4 @@
 #include "PluginProcessor.h"
-#include "Quantizer.h"
 
 void MidiFXProcessor::processBlock(juce::AudioBuffer<float>& audioBuffer,
                                    juce::MidiBuffer& midiMessages)
@@ -16,11 +15,7 @@ void MidiFXProcessor::processBlock(juce::AudioBuffer<float>& audioBuffer,
         //First, debug all incoming messages to console:
         std::cout << "Incoming:" << message.getDescription()
                   << " SamplePos:" << juce::String(samplePos) << std::endl;
-
-        //Then, quantize to c major
-        if (message.isNoteOnOrOff())
-            message.setNoteNumber(Quantizer::getClosestCMajorScaleNote(message.getNoteNumber()));
-
+        
         tempBuffer.addEvent(message, samplePos);
     }
 

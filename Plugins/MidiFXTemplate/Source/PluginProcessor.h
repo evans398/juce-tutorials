@@ -10,11 +10,12 @@ public:
 
     juce::AudioProcessorEditor* createEditor() override;
 
-    static int getClosestCMajorScaleNote(int midiNote);
 
 private:
 
     juce::MidiBuffer tempBuffer;
+
+    juce::MidiMessageSequence messageSequence{};
 
 
 };
