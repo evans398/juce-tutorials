@@ -1,6 +1,6 @@
 project(FirstMidiPlugin VERSION 0.0.1)
 
-set (BaseTargetName FirstMidiPlugin)
+set (BaseTargetName MidiLooper)
 
 juce_add_plugin("${BaseTargetName}"
         # VERSION ...                               # Set this if the plugin version is different to the project version
@@ -14,9 +14,9 @@ juce_add_plugin("${BaseTargetName}"
         EDITOR_WANTS_KEYBOARD_FOCUS FALSE
         COPY_PLUGIN_AFTER_BUILD TRUE
         PLUGIN_MANUFACTURER_CODE Juce
-        PLUGIN_CODE FMPx
+        PLUGIN_CODE MLx
         FORMATS AU VST3 Standalone
-        PRODUCT_NAME "FirstMidiPlugin")
+        PRODUCT_NAME "MidiLooper")
 
 target_sources(${BaseTargetName} PRIVATE
         Source/PluginProcessor.cpp)
