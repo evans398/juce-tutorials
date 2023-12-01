@@ -1,11 +1,32 @@
 #include "PluginProcessor.h"
 
+MidiFXProcessor::MidiFXProcessor()
+    : apvts(*this, nullptr, "Parameters", createParameters())
+{
+    // Constructor code...
+}
+
+MidiFXProcessor::~MidiFXProcessor()
+{
+    // Destructor code...
+}
+
 void MidiFXProcessor::processBlock(juce::AudioBuffer<float>& audioBuffer,
                                    juce::MidiBuffer& midiMessages)
 
 {
     tempBuffer.clear();
     audioBuffer.clear();
+
+    // Get the AudioParameterInt by ID
+    auto* densityParam = dynamic_cast<juce::AudioParameterInt*>(apvts.getParameter("DENSITY"));
+
+    if (densityParam != nullptr)
+    {
+        // Use myIntParameter as needed...
+        int densityParamValue = densityParam->get();
+        std::cout << densityParamValue;
+    }
 
     // get Playhead info && buffer size && sample rate from host
     auto playHead = getPlayHead();
@@ -34,11 +55,13 @@ void MidiFXProcessor::processBlock(juce::AudioBuffer<float>& audioBuffer,
             if ((modPosSeq <= message.getTimeStamp() && message.getTimeStamp() <= modEndPosSeq)) {
                 ppqPosition = message.getTimeStamp() - modPosSeq;
                 int samplePosition = ppqPosition * samplesPerQuarterNote;
+                message.setTimeStamp(0);
                 tempBuffer.addEvent(message, samplePosition);
                 DBG("ADDED MIDI NOTE");
             } else if (modPosSeq > modEndPosSeq && message.getTimeStamp() == 0) {
                 ppqPosition = denominator - modPosSeq;
                 int samplePosition = ppqPosition * samplesPerQuarterNote;
+                message.setTimeStamp(0);
                 tempBuffer.addEvent(message, samplePosition);
                 DBG("ADDED MIDI NOTE");
             }
@@ -56,4 +79,11 @@ juce::AudioProcessorEditor* MidiFXProcessor::createEditor()
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
 {
     return new MidiFXProcessor();
+}
+
+juce::AudioProcessorValueTreeState::ParameterLayout MidiFXProcessor::createParameters()
+{
+    std::vector<std::unique_ptr<juce::RangedAudioParameter>> params;
+    params.push_back(std::make_unique<juce::AudioParameterInt>("DENSITY", "Density", 0, 10, 1));
+    return {params.begin(), params.end()};
 }
