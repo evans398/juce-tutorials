@@ -3,13 +3,19 @@
 MidiFXProcessor::MidiFXProcessor()
     : apvts(*this, nullptr, "Parameters", createParameters())
 {
-    // Constructor code...
+
 }
 
 MidiFXProcessor::~MidiFXProcessor()
 {
     // Destructor code...
 }
+
+
+auto noteOnKickMessage = juce::MidiMessage::noteOn((int)1, (int)36, (float)0.8);
+auto noteOffKickMessage = juce::MidiMessage::noteOff((int)1, (int)36);
+auto noteOnSnareMessage = juce::MidiMessage::noteOn((int)1, (int)39, (float)0.8);
+auto noteOffSnareMessage = juce::MidiMessage::noteOff((int)1, (int)39);
 
 void MidiFXProcessor::processBlock(juce::AudioBuffer<float>& audioBuffer,
                                    juce::MidiBuffer& midiMessages)
@@ -25,7 +31,6 @@ void MidiFXProcessor::processBlock(juce::AudioBuffer<float>& audioBuffer,
     {
         // Use myIntParameter as needed...
         int densityParamValue = densityParam->get();
-        std::cout << densityParamValue;
     }
 
     // get Playhead info && buffer size && sample rate from host
@@ -35,7 +40,8 @@ void MidiFXProcessor::processBlock(juce::AudioBuffer<float>& audioBuffer,
     auto fs = getSampleRate();
     auto buffSize = audioBuffer.getNumSamples();
 
-    if (positionInfo.hasValue() && bpm.hasValue() && positionInfo->getIsPlaying()) {
+    if (positionInfo.hasValue() && bpm.hasValue() && positionInfo->getIsPlaying())
+    {
         // figure out the end point ppq of buffer using pos, buffer size and sample rate
         auto bufferLengthPpq = (buffSize) * *bpm / (fs * 60.0);
         auto pos = positionInfo->getPpqPosition();
@@ -44,30 +50,34 @@ void MidiFXProcessor::processBlock(juce::AudioBuffer<float>& audioBuffer,
         auto denominator = 4.0;
         auto modPosSeq = std::fmod(*pos, denominator);
         auto modEndPosSeq = std::fmod(endPos, denominator);
-        DBG("Value of PosSeq: " << *pos);
-        DBG("Value of EndPosSeq: " << endPos);
+//        DBG("Value of PosSeq: " << *pos);
+//        DBG("Value of EndPosSeq: " << endPos);
+        DBG("Value of modPosSeq: " << modPosSeq);
+        DBG("Value of modEndPosSeq: " << modEndPosSeq);
         // Calculate samples per quarter note
         double samplesPerQuarterNote = 60.0 / *bpm * fs;
-//
-        for(auto m: midiSequence) {
-            auto message = m->message;
+
+        for (int i = 0; i < 4; i++)
+        {
             double ppqPosition;
-            if ((modPosSeq <= message.getTimeStamp() && message.getTimeStamp() <= modEndPosSeq)) {
-                ppqPosition = message.getTimeStamp() - modPosSeq;
+            if ((modPosSeq <= i && i <= modEndPosSeq))
+            {
+                ppqPosition = i - modPosSeq;
                 int samplePosition = ppqPosition * samplesPerQuarterNote;
-                message.setTimeStamp(0);
-                tempBuffer.addEvent(message, samplePosition);
+                noteOnKickMessage.setTimeStamp(0);
+                tempBuffer.addEvent(noteOnKickMessage, samplePosition);
                 DBG("ADDED MIDI NOTE");
-            } else if (modPosSeq > modEndPosSeq && message.getTimeStamp() == 0) {
+            }
+            else if (modPosSeq > modEndPosSeq && i == 0)
+            {
                 ppqPosition = denominator - modPosSeq;
                 int samplePosition = ppqPosition * samplesPerQuarterNote;
-                message.setTimeStamp(0);
-                tempBuffer.addEvent(message, samplePosition);
+                noteOnKickMessage.setTimeStamp(0);
+                tempBuffer.addEvent(noteOnKickMessage, samplePosition);
                 DBG("ADDED MIDI NOTE");
             }
         }
     }
-
     midiMessages.swapWith(tempBuffer);
 }
 
