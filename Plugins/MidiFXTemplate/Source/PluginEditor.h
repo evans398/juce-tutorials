@@ -12,8 +12,10 @@ public:
     void resized() override;
 
 private:
-    juce::Slider densitySlider;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> densitySliderAttachment;
+    juce::Slider snareDensitySlider;
+    juce::Slider kickDensitySlider;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> snareDensitySliderAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> kickDensitySliderAttachment;
 
     MidiFXProcessor& processor;
 

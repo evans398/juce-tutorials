@@ -13,9 +13,9 @@ MidiFXProcessor::~MidiFXProcessor()
 
 
 auto noteOnKickMessage = juce::MidiMessage::noteOn((int)1, (int)36, (float)0.8);
-auto noteOffKickMessage = juce::MidiMessage::noteOff((int)1, (int)36);
+auto noteOffKickMessage = juce::MidiMessage::noteOn((int)1, (int)36, (float)0.0);
 auto noteOnSnareMessage = juce::MidiMessage::noteOn((int)1, (int)39, (float)0.8);
-auto noteOffSnareMessage = juce::MidiMessage::noteOff((int)1, (int)39);
+auto noteOffSnareMessage = juce::MidiMessage::noteOn((int)1, (int)39, (float)0.0);
 
 void MidiFXProcessor::processBlock(juce::AudioBuffer<float>& audioBuffer,
                                    juce::MidiBuffer& midiMessages)
@@ -25,13 +25,16 @@ void MidiFXProcessor::processBlock(juce::AudioBuffer<float>& audioBuffer,
     audioBuffer.clear();
 
     // Get the AudioParameterInt by ID
-    auto* densityParam = dynamic_cast<juce::AudioParameterInt*>(apvts.getParameter("DENSITY"));
-    int densityParamValue;
+    auto* snareDensityParam = dynamic_cast<juce::AudioParameterInt*>(apvts.getParameter("SDENSITY"));
+    int snareDensityParamValue;
 
-    if (densityParam != nullptr)
+    auto* kickDensityParam = dynamic_cast<juce::AudioParameterInt*>(apvts.getParameter("KDENSITY"));
+    int kickDensityParamValue;
+
+    if (snareDensityParam != nullptr && kickDensityParam != nullptr)
     {
-        // Use myIntParameter as needed...
-        densityParamValue = densityParam->get();
+        snareDensityParamValue = snareDensityParam->get();
+        kickDensityParamValue = kickDensityParam->get();
     } else {
         return;
     }
@@ -41,44 +44,61 @@ void MidiFXProcessor::processBlock(juce::AudioBuffer<float>& audioBuffer,
     auto positionInfo = playHead->getPosition();
     auto bpm = positionInfo->getBpm();
     auto fs = getSampleRate();
-    auto buffSize = audioBuffer.getNumSamples();
+    auto buffSize = audioBuffer.getNumSamples(); //size of buffer in samples
 
     if (positionInfo.hasValue() && bpm.hasValue() && positionInfo->getIsPlaying())
     {
-        // figure out the end point ppq of buffer using pos, buffer size and sample rate
-        auto bufferLengthPpq = (buffSize) * *bpm / (fs * 60.0);
-        auto pos = positionInfo->getPpqPosition();
-        auto notePos = *pos * densityParamValue;
-        auto endPos = notePos + (bufferLengthPpq * densityParamValue);
+        juce::MidiMessage noteOn;
+        juce::MidiMessage noteOff;
+        int densityParamValue;
+
+        // figure out the end point ppq of buffer using playHeadPosInDensityNoteLengths, buffer size and sample rate
+        auto bufferLengthPpq = (buffSize) * *bpm / (fs * 60.0); // size of buffer in ppq
+        auto playHeadPosInQuarterNotes = positionInfo->getPpqPosition(); // /** The current play position, in units of quarter-notes. */
+        auto bufferEndPosInQuarterNotes = *playHeadPosInQuarterNotes + bufferLengthPpq;
+
+        int roundedDownQuarterNotePos = bufferEndPosInQuarterNotes;
+        if (roundedDownQuarterNotePos % 2 == 0) {
+            noteOn = noteOnKickMessage;
+            noteOff = noteOffKickMessage;
+            densityParamValue = kickDensityParamValue;
+        } else {
+            noteOn = noteOnSnareMessage;
+            noteOff = noteOffSnareMessage;
+            densityParamValue = snareDensityParamValue;
+        }
+
+        auto playHeadPosInDensityNoteLengths = *playHeadPosInQuarterNotes * densityParamValue;
+        auto bufferEndPosInDensityNoteLengths = playHeadPosInDensityNoteLengths + (bufferLengthPpq * densityParamValue);
         // Note all timings should be modulus of 4 (as we want to loop the 1 bar pattern)
         auto denominator = 4.0 * densityParamValue;
-        auto modPosSeq = std::fmod(notePos, denominator);
-        auto modEndPosSeq = std::fmod(endPos, denominator);
-//        DBG("Value of PosSeq: " << *pos);
-//        DBG("Value of EndPosSeq: " << endPos);
-        DBG("Value of modPosSeq: " << modPosSeq);
-        DBG("Value of modEndPosSeq: " << modEndPosSeq);
+        auto partialNoteLengthAtStart = std::fmod(playHeadPosInDensityNoteLengths, denominator);
+        auto partialNoteLengthAtEnd = std::fmod(bufferEndPosInDensityNoteLengths, denominator);
         // Calculate samples per quarter note
         double samplesPerQuarterNote = 60.0 / *bpm * fs;
-        double samplesPerNote = (60.0 / *bpm * fs) / densityParamValue;
+        double samplesPerDensityNote = samplesPerQuarterNote / densityParamValue;
 
         for (int i = 0; i < (4.0 * densityParamValue); i++)
         {
-            double notePosition;
-            if ((modPosSeq <= i && i <= modEndPosSeq))
+            double halfNoteLength = i + 0.5;
+            double noteStartPositionInDensityNoteLengths;
+            if ((partialNoteLengthAtStart <= i && i <= partialNoteLengthAtEnd))
             {
-                notePosition = i - modPosSeq;
-                int samplePosition = notePosition * samplesPerNote;
-                noteOnKickMessage.setTimeStamp(0);
-                tempBuffer.addEvent(noteOnKickMessage, samplePosition);
+                noteStartPositionInDensityNoteLengths = i - partialNoteLengthAtStart;
+                int noteStartPositionInSamples = noteStartPositionInDensityNoteLengths * samplesPerDensityNote;
+                tempBuffer.addEvent(noteOn, noteStartPositionInSamples);
                 DBG("ADDED MIDI NOTE");
             }
-            else if (modPosSeq > modEndPosSeq && i == 0)
+            else if ((partialNoteLengthAtStart <= halfNoteLength && halfNoteLength <= partialNoteLengthAtEnd)) {
+                noteStartPositionInDensityNoteLengths = halfNoteLength - partialNoteLengthAtStart;
+                int noteStartPositionInSamples = noteStartPositionInDensityNoteLengths * samplesPerDensityNote;
+                tempBuffer.addEvent(noteOff, noteStartPositionInSamples);
+            }
+            else if (partialNoteLengthAtStart > partialNoteLengthAtEnd && i == 0)
             {
-                notePosition = denominator - modPosSeq;
-                int samplePosition = notePosition * samplesPerQuarterNote;
-                noteOnKickMessage.setTimeStamp(0);
-                tempBuffer.addEvent(noteOnKickMessage, samplePosition);
+                noteStartPositionInDensityNoteLengths = denominator - partialNoteLengthAtStart;
+                int noteStartPositionInSamples = noteStartPositionInDensityNoteLengths * samplesPerDensityNote;
+                tempBuffer.addEvent(noteOn, noteStartPositionInSamples);
                 DBG("ADDED MIDI NOTE");
             }
         }
@@ -99,6 +119,7 @@ juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
 juce::AudioProcessorValueTreeState::ParameterLayout MidiFXProcessor::createParameters()
 {
     std::vector<std::unique_ptr<juce::RangedAudioParameter>> params;
-    params.push_back(std::make_unique<juce::AudioParameterInt>("DENSITY", "Density", 0, 10, 1));
+    params.push_back(std::make_unique<juce::AudioParameterInt>("SDENSITY", "Snare Density", 0, 10, 1));
+    params.push_back(std::make_unique<juce::AudioParameterInt>("KDENSITY", "Kick Density", 0, 10, 1));
     return {params.begin(), params.end()};
 }
