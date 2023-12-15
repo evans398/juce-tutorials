@@ -15,7 +15,7 @@ juce_add_plugin("${BaseTargetName}"
         COPY_PLUGIN_AFTER_BUILD TRUE
         PLUGIN_MANUFACTURER_CODE Juce
         PLUGIN_CODE MLx
-        FORMATS AU VST3 Standalone
+        FORMATS VST3 Standalone
         PRODUCT_NAME "MidiLooper")
 
 target_sources(${BaseTargetName} PRIVATE
