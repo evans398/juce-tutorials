@@ -85,7 +85,7 @@ public:
                 tempBuffer.addEvent(message, noteStartPositionRelativeToBufferStartInSamples);
                 //            DBG("ADDED MIDI NOTE UPPER: " + juce::String(message.getTimeStamp()));
             }
-            else if (partialNoteLengthAtBufferStartInQn > partialNoteLengthAtBufferEndInQn
+            /*else if (partialNoteLengthAtBufferStartInQn > partialNoteLengthAtBufferEndInQn
                      && int(message.getTimeStamp()) == 0)
             {
                 double endOfLoopInQn = 2.0;
@@ -94,7 +94,7 @@ public:
                 int noteStartPositionRelativeToBufferStartInSamples =
                     remainderOfLoopFromStartOfBuffertoEndOfLoopInQn * samplesPerQuarterNote;
                 tempBuffer.addEvent(message, noteStartPositionRelativeToBufferStartInSamples);
-            }
+            }*/
         }
     }
 

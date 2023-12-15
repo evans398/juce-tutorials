@@ -59,16 +59,18 @@ void MidiFXProcessor::processBlock(juce::AudioBuffer<float>& audioBuffer,
 
         // figure out the end point ppq of buffer using playHeadPosInDensityNoteLengths, buffer size and sample rate
         auto bufferLengthPpq = (buffSize) * *bpm / (fs * 60.0); // size of buffer in ppq
-        auto playHeadPosInQn = positionInfo->getPpqPosition(); // /** The current play position, in units of quarter-notes. */
+        auto playHeadPosInQn = *positionInfo->getPpqPosition(); // /** The current play position, in units of quarter-notes. */
         // Note all timings should be modulus of 2 (as we want to loop 2 qn)
-        auto partialNoteLengthAtStartInQn = std::fmod(*playHeadPosInQn, 2.0);
-        auto bufferEndPosInQn = partialNoteLengthAtStartInQn + bufferLengthPpq;
+//        auto partialNoteLengthAtStartInQn = std::fmod(*playHeadPosInQn, 2.0);
+        auto bufferEndPosInQn = playHeadPosInQn + bufferLengthPpq;
+        bufferEndPosInQn = std::fmod(bufferEndPosInQn, 2.0);
+        playHeadPosInQn = bufferEndPosInQn - bufferLengthPpq;
 
         // Calculate samples per quarter note
         auto samplesPerQuarterNote = int(60.0 / *bpm * fs);
 
         constructTempBuffer(
-            partialNoteLengthAtStartInQn,
+            playHeadPosInQn,
             bufferEndPosInQn,
             samplesPerQuarterNote);
 
